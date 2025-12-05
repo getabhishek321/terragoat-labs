@@ -1,0 +1,388 @@
+Nice — below is a **complete, detailed, copy-ready log** of everything we did up to now to set up Git on your Linux VM and create the `terragoat-labs` repo, plus explanations, verification commands, troubleshooting tips, and exactly-formatted snippets you can paste into a GitHub markdown file for future reference. I wrote it so you can drop it straight into your repo as `docs/setup-git-and-repo.md`.
+
+---
+
+# Setup log — Git, git-lfs, gh, and repo creation (detailed)
+
+> Purpose: a reproducible record of the steps taken to install and verify Git tooling, fix a broken script, and scaffold + push the `terragoat-labs` repository. 
+Use this as your future reference.
+
+---
+
+## Environment
+
+* Host: Ubuntu (Linux VM) — commands run in a bash shell.
+* Working folder used: `~/projects`
+* Repo name used in the script: `terragoat-labs`
+* Tools used (installed or checked): `git`, `git-lfs`, `gh` (GitHub CLI), Bash.
+
+---
+
+## 1 — Basic checks (what I ran first)
+
+Open a terminal and run these to check presence and versions of core tools:
+
+```bash
+git --version
+gh --version || echo "gh not installed"
+git-lfs --version || echo "git-lfs not installed"
+bash --version
+```
+
+**Why:** verifies you have the tools required. If any are missing, the subsequent installation steps are needed.
+
+**Expected example outputs:**
+
+* `git --version` → `git version 2.34.1` (versions vary)
+* `gh --version` → `gh version 2.x.x`
+* `git-lfs --version` → `git-lfs/3.x.x (GitHub; linux amd64; go1.x)`
+* `bash --version` → `GNU bash, version 5.x.x(...)`
+
+---
+
+## 2 — Installing missing tools (if needed)
+
+### Install Git (Debian/Ubuntu)
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
+
+### Install GitHub CLI (`gh`) — recommended install for Debian/Ubuntu
+
+```bash
+sudo apt install -y curl apt-transport-https
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" |
+  sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+sudo apt update
+sudo apt install -y gh
+```
+
+### Install Git LFS
+
+```bash
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt install -y git-lfs
+git lfs install
+```
+
+**Why:** `gh` lets us create GitHub repos and perform common actions from CLI; `git-lfs` avoids large-binary problems when storing screenshots.
+
+---
+
+## 3 — Create working folder and prepare to scaffold
+
+Create a projects folder and change into it:
+
+```bash
+mkdir -p ~/projects
+cd ~/projects
+pwd   # should show /home/<user>/projects
+```
+
+---
+
+## 4 — The broken script warning and diagnosis
+
+When you first ran the script you saw:
+
+```
+./create_repo.sh: line 106: warning: here-document at line 82 delimited by end-of-file (wanted `EOF')
+```
+
+**Meaning:** one or more here-doc (`cat > file <<'EOF' ... EOF`) blocks were not closed with their matching `EOF`. This usually happens if the script was partially pasted or truncated.
+
+**Quick diagnostics used (optional):**
+
+```bash
+# show end of file
+tail -n 120 create_repo.sh
+
+# show file with line numbers
+nl -ba create_repo.sh | sed -n '1,300p'
+```
+
+Look for `<<'EOF'` lines that do not have a later `EOF` terminator.
+
+---
+
+## 5 — Back up the broken script (safety)
+
+Always back up before overwriting:
+
+```bash
+cp create_repo.sh create_repo.sh.bak.$(date +%s)
+```
+
+This creates a timestamped backup like `create_repo.sh.bak.1700000000`.
+
+---
+
+## 6 — Replace the broken script with a corrected version (what we did)
+
+We replaced the script safely by writing a fixed `create_repo.sh` file with a here-document that contains the full scaffold script. Example command used:
+
+```bash
+cat > create_repo.sh <<'SCRIPT'
+#!/usr/bin/env bash
+# create_repo.sh
+# ... entire corrected script content follows ...
+SCRIPT
+```
+
+Then make it executable:
+
+```bash
+chmod +x create_repo.sh
+```
+
+**Why:** this ensures the file is atomically rewritten and the here-document markers are correct.
+
+---
+
+## 7 — Run the create script
+
+From `~/projects`:
+
+```bash
+./create_repo.sh
+```
+
+**What the script does (summary):**
+
+* Creates directory `./terragoat-labs`.
+* Creates folders: `.github/ISSUE_TEMPLATE`, `.github/workflows`, `labs`, `diary`, `lessons`, `scripts`, `screenshots`.
+* Writes scaffold files: `.gitignore`, `.gitattributes`, `README.md`, lab templates, issue templates, workflow, diary template, lessons/README.
+* `git init`, initial commit.
+* If `git-lfs` present: `git lfs install`, `git lfs track "**/screenshots/*"`, commit `.gitattributes`.
+* If `gh` present and you're authenticated: create GitHub repository with `gh repo create ... --source=. --remote=origin --push`.
+* If `gh` missing: prints manual instructions to add a remote and push.
+
+**Typical outputs / prompts:**
+
+* If `gh` creates the repo, it will show a created repo URL and automatically push `main`.
+* If `git-lfs` is missing, the script prints a reminder to install it.
+
+---
+
+## 8 — If `gh` is used: authenticate `gh` before running
+
+If `gh` is installed but not logged in:
+
+```bash
+gh auth login
+```
+
+Follow the interactive prompts:
+
+* Choose GitHub.com
+* Choose a preferred authentication method (browser recommended)
+* Approve requested scopes (repo creation needs `repo` or relevant scopes)
+
+**Tip:** confirm login with:
+
+```bash
+gh auth status
+```
+
+---
+
+## 9 — Manual push alternative (if gh not used or failed)
+
+If you prefer to create the repo through GitHub web UI, or `gh` failed, follow these steps:
+
+1. Create a GitHub repo named `terragoat-labs` (via web UI).
+2. In your local `~/projects/terragoat-labs` run:
+
+```bash
+git branch -M main
+git remote add origin git@github.com:YOUR_USERNAME/terragoat-labs.git
+git push -u origin main
+```
+
+If you use HTTPS remote instead of SSH:
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/terragoat-labs.git
+git push -u origin main
+```
+
+If prompted for credentials when pushing via HTTPS, either:
+
+* Use `gh auth login` which configures credential helpers, or
+* Set up SSH keys and add them to GitHub (see below).
+
+---
+
+## 10 — (Optional but recommended) Set up SSH keys for GitHub pushes
+
+```bash
+# generate a key (if you don't have one)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+# or for older systems:
+# ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+
+# copy public key
+cat ~/.ssh/id_ed25519.pub   # copy this and paste into GitHub > Settings > SSH and GPG keys
+
+# test
+ssh -T git@github.com
+# expected: "Hi <username>! You've successfully authenticated, but GitHub does not provide shell access."
+```
+
+---
+
+## 11 — Confirm repository & tracking status (verification commands)
+
+Run these in the project folder to confirm everything is correct:
+
+```bash
+# check git repo
+git status
+git log --oneline -n 5
+
+# check remote
+git remote -v
+
+# check LFS tracking
+git lfs track
+git lfs ls-files  # lists LFS tracked files in the working tree
+
+# check gh connection (if using gh)
+gh repo view --web  # opens repo in browser
+gh auth status
+
+# check files created
+ls -la
+tree -L 2   # if tree is installed
+```
+
+**What to see:**
+
+* `git status` should show a clean working tree right after the initial commit.
+* `git remote -v` should show `origin` with the repo URL (if pushed).
+* `.gitattributes` should contain LFS patterns for `**/screenshots/*`.
+
+---
+
+## 12 — Add your first lab folder and commit (example steps we performed)
+
+```bash
+cd terragoat-labs
+mkdir -p labs/terragoat-s3/screenshots
+cp labs/lab-template-lab-report.md labs/terragoat-s3/lab-report.md
+
+git add labs/terragoat-s3
+git commit -m "feat: add first lab template for terragoat-s3"
+git push
+```
+
+**Why:** creates a per-lab folder and commits the template for you to fill in.
+
+---
+
+## 13 — How to add screenshots safely
+
+1. Save images to `labs/<lab-name>/screenshots/` using naming convention:
+
+   ```
+   YYYYMMDD-HHMMSS_short-desc.png
+   ```
+2. Add and commit:
+
+```bash
+git add labs/terragoat-s3/screenshots/20251205-213000-plan.png
+git commit -m "docs(lab): add screenshots for terragoat-s3"
+git push
+```
+
+Because `.gitattributes` tracks those paths with Git LFS, the images will be stored in LFS (if `git-lfs` is set up).
+
+**Verify LFS objects:**
+
+```bash
+git lfs ls-files
+```
+
+---
+
+## 14 — Troubleshooting common issues & fixes
+
+* **Here-doc missing EOF warning**
+  Fix: ensure every `cat > file <<'EOF'` block in the script has a matching `EOF` on a new line with no extra spaces/tabs. We fixed this by replacing the file with a corrected script using `cat` and a final `SCRIPT` terminator.
+
+* **`gh` permission / org error**
+  If `gh` fails to create a repo in an organization, either remove `GITHUB_ORG` or ensure your account has permission to create repos in that org. You can also create in your personal account.
+
+* **Large files rejected by GitHub**
+  Ensure `git-lfs` is installed and `.gitattributes` tracked the `screenshots/*` pattern before committing images. If you committed large images without LFS, you may need to remove them and re-add with LFS, or use `git filter-repo` (advanced).
+
+* **Push via HTTPS prompts credentials repeatedly**
+  Use `gh auth login` (it configures a credential helper), or set up SSH keys and use the SSH remote.
+
+* **`git lfs` not installed after script ran**
+  Install `git-lfs`, run `git lfs install`, then re-run `git lfs track "**/screenshots/*"` and commit `.gitattributes` if missing.
+
+---
+
+## 15 — How to restore previous backup of the broken script (if needed)
+
+If you want to inspect the original broken script:
+
+```bash
+ls -1 create_repo.sh.bak.*
+nl -ba create_repo.sh.bak.<timestamp> | sed -n '1,200p'
+```
+
+If you want to restore it (rarely needed), copy it back:
+
+```bash
+cp create_repo.sh.bak.<timestamp> create_repo.sh
+chmod +x create_repo.sh
+```
+
+---
+
+## 16 — Suggested `README` entry to paste into your GitHub repo (copy-ready)
+
+```md
+## How I set up Git and the terragoat-labs repo (summary)
+
+1. Verified tooling:
+   - `git`, `gh` (GitHub CLI), `git-lfs`, and `bash` present.
+2. Installed missing tools (Ubuntu):
+   - `sudo apt install git`
+   - install `gh` via GitHub CLI packages
+   - install `git-lfs` and run `git lfs install`
+3. Created working folder: `~/projects`
+4. Created and fixed scaffold script `create_repo.sh`
+   - backed up original: `cp create_repo.sh create_repo.sh.bak.$(date +%s)`
+   - wrote corrected script and `chmod +x create_repo.sh`
+5. Ran script to scaffold `terragoat-labs`, initialize git, and (optionally) push repo using `gh`.
+6. Confirmed LFS tracking for screenshot paths via `.gitattributes`.
+7. Added first lab folder `labs/terragoat-s3` with template and pushed changes.
+8. Verified repository state (`git status`, `git remote -v`, `git lfs ls-files`, `gh auth status`).
+
+Keep this document for future reference and update it with dates and any troubleshooting steps you performed.
+```
+
+---
+
+## 17 — Next steps you might want to do now
+
+* Fill `labs/terragoat-s3/lab-report.md` with the first lab notes and commands you run.
+* Start the TerraGoat deployment in a sandbox AWS account and capture screenshots into `labs/terragoat-s3/screenshots/`.
+* Add a weekly `lessons/2025-W49.md` summary file.
+* Enable GitHub Pages or a `docs/` site if you want to publish lessons publicly.
+
+---
+
+If you want, I can:
+
+* produce the **exact final markdown file** `docs/setup-git-and-repo.md` ready to commit (I can paste it here), or
+* generate a short checklist version for quick reference to keep in your repo root (e.g., `SETUP.md`).
+
+Which one do you want next?
