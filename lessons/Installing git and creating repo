@@ -3,7 +3,7 @@
 > Purpose: a reproducible record of the steps taken to install and verify Git tooling, fix a broken script, and scaffold + push the `terragoat-labs` repository. 
 Use this as your future reference.
 
----
+--- 
 
 ## Environment
 
