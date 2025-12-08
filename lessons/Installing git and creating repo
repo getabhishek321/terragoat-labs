@@ -19,7 +19,7 @@ Use this as your future reference.
 Open a terminal and run these to check presence and versions of core tools:
 
 
-git --version 
+git --version
 gh --version || echo "gh not installed"
 git-lfs --version || echo "git-lfs not installed"
 bash --version
