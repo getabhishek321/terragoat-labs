@@ -44,4 +44,4 @@ YYYY-MM-DD
 
 ## Next steps
 - Write detection rule
-- Run Checkov scan
+- Run Checkov scan 
